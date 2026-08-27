@@ -1,0 +1,906 @@
+<title>The Housekeeping Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:    #EDF1F0;
+  --surface:   #FFFFFF;
+  --surface-2: #E3E9E7;
+  --ink:       #131F1E;
+  --ink-soft:  #566462;
+  --ink-faint: #6E7C79;
+  --rule:      #D2DBD9;
+  --rule-soft: #E1E7E6;
+  --accent:    #7E6014;
+  --accent-bg: #F3EBD6;
+
+  --s-occupied:  #3F6699;
+  --s-dirty:     #A9412A;
+  --s-cleaning:  #8F6810;
+  --s-inspected: #26685F;
+  --s-ready:     #2C7439;
+
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --measure: 68ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:    #0F1615;
+    --surface:   #161F1E;
+    --surface-2: #1E2827;
+    --ink:       #E4EBE9;
+    --ink-soft:  #9AA8A5;
+    --ink-faint: #82908D;
+    --rule:      #2B3735;
+    --rule-soft: #222D2C;
+    --accent:    #D9B45E;
+    --accent-bg: #2A2415;
+
+    --s-occupied:  #7FA6DB;
+    --s-dirty:     #E08262;
+    --s-cleaning:  #DEB458;
+    --s-inspected: #5FBDB1;
+    --s-ready:     #71BF7E;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:    #0F1615;
+  --surface:   #161F1E;
+  --surface-2: #1E2827;
+  --ink:       #E4EBE9;
+  --ink-soft:  #9AA8A5;
+  --ink-faint: #82908D;
+  --rule:      #2B3735;
+  --rule-soft: #222D2C;
+  --accent:    #D9B45E;
+  --accent-bg: #2A2415;
+
+  --s-occupied:  #7FA6DB;
+  --s-dirty:     #E08262;
+  --s-cleaning:  #DEB458;
+  --s-inspected: #5FBDB1;
+  --s-ready:     #71BF7E;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16.5px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 clamp(18px, 4vw, 40px) 96px;
+}
+
+p, ul, ol { max-width: var(--measure); }
+
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* ---------- masthead ---------- */
+
+.pipe-rule {
+  display: flex;
+  height: 5px;
+  gap: 2px;
+  margin: 0 0 26px;
+}
+.pipe-rule span { flex: 1; border-radius: 1px; }
+.pipe-rule span:nth-child(1) { background: var(--s-occupied); }
+.pipe-rule span:nth-child(2) { background: var(--s-dirty); }
+.pipe-rule span:nth-child(3) { background: var(--s-cleaning); }
+.pipe-rule span:nth-child(4) { background: var(--s-inspected); }
+.pipe-rule span:nth-child(5) { background: var(--s-ready); }
+
+header.mast { padding-top: 40px; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 108, "wght" 700;
+  font-size: clamp(2.3rem, 5.4vw, 3.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin: 14px 0 0;
+  text-wrap: balance;
+}
+
+.standfirst {
+  font-size: 1.12rem;
+  color: var(--ink-soft);
+  margin: 16px 0 0;
+  max-width: 60ch;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 0; }
+.chip {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-soft);
+  background: var(--surface);
+}
+.chip b { color: var(--ink); font-weight: 600; }
+
+/* ---------- sections ---------- */
+
+section { margin-top: 68px; }
+
+h2 {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 100, "wght" 650;
+  font-size: 1.7rem;
+  letter-spacing: -0.012em;
+  margin: 10px 0 0;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 100, "wght" 600;
+  font-size: 1.06rem;
+  letter-spacing: -0.005em;
+  margin: 34px 0 8px;
+}
+.sec-head { border-top: 1px solid var(--rule); padding-top: 16px; }
+.lede { color: var(--ink-soft); margin-top: 12px; }
+
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+p code, li code, td code, th code, h4 code {
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: clamp(16px, 2.6vw, 26px);
+  margin-top: 24px;
+}
+
+/* ---------- figures ---------- */
+
+figure { margin: 28px 0 0; }
+.figbox {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 20px clamp(12px, 2vw, 22px);
+  overflow-x: auto;
+}
+figure svg { display: block; max-width: 100%; height: auto; min-width: 620px; color: var(--ink); }
+figcaption {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-top: 12px;
+  max-width: var(--measure);
+}
+
+.d-box   { fill: var(--surface-2); stroke: var(--rule); stroke-width: 1.4; }
+.d-box-a { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.6; }
+.d-box-g { fill: none; stroke: var(--rule); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.d-frame { fill: none; stroke: var(--rule); stroke-width: 1.2; stroke-dasharray: 3 5; }
+.d-t     { fill: currentColor; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+.d-t-b   { fill: currentColor; font-family: "IBM Plex Sans", sans-serif; font-size: 13px; font-weight: 600; }
+.d-lbl   { fill: var(--ink-faint); font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.04em; }
+.d-line  { stroke: currentColor; stroke-width: 1.4; fill: none; opacity: 0.55; }
+.d-line-a { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-line-u { stroke: var(--s-occupied); stroke-width: 1.8; fill: none; }
+.d-dash  { stroke: var(--s-occupied); stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; }
+.d-dash-g { stroke: currentColor; stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; opacity: 0.5; }
+.d-fill  { fill: currentColor; opacity: 0.55; }
+.d-fill-a { fill: var(--accent); }
+.d-fill-u { fill: var(--s-occupied); }
+
+.n-occupied  { stroke: var(--s-occupied);  fill: var(--surface-2); stroke-width: 2; }
+.n-dirty     { stroke: var(--s-dirty);     fill: var(--surface-2); stroke-width: 2; }
+.n-cleaning  { stroke: var(--s-cleaning);  fill: var(--surface-2); stroke-width: 2; }
+.n-inspected { stroke: var(--s-inspected); fill: var(--surface-2); stroke-width: 2; }
+.n-ready     { stroke: var(--s-ready);     fill: var(--surface-2); stroke-width: 2; }
+
+/* ---------- tables ---------- */
+
+.tbl-scroll { overflow-x: auto; margin-top: 22px; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+  font-size: 14.5px;
+}
+th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 500;
+  padding: 0 14px 8px 0;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+td {
+  padding: 10px 14px 10px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: none; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+.pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.p-occupied  { color: var(--s-occupied); }
+.p-dirty     { color: var(--s-dirty); }
+.p-cleaning  { color: var(--s-cleaning); }
+.p-inspected { color: var(--s-inspected); }
+.p-ready     { color: var(--s-ready); }
+
+/* ---------- call flows ---------- */
+
+.flowgrid { display: grid; gap: 18px; margin-top: 24px; }
+.flow {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.flow-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--surface-2);
+}
+.flow-key {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 1px 7px;
+  flex: none;
+}
+.flow-title {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 100, "wght" 600;
+  font-size: 1rem;
+}
+.flow-note { font-size: 13px; color: var(--ink-faint); margin-left: auto; }
+.flow pre {
+  margin: 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12.8px;
+  line-height: 1.72;
+  color: var(--ink-soft);
+}
+.flow pre b { color: var(--ink); font-weight: 600; }
+.flow pre i { color: var(--accent); font-style: normal; }
+
+/* ---------- guards ---------- */
+
+.guards { display: grid; gap: 14px; margin-top: 24px; }
+.guard {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 16px;
+  align-items: start;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--s-occupied);
+  border-radius: 4px;
+  padding: 16px 18px;
+}
+.guard-n {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 90, "wght" 700;
+  font-size: 1.5rem;
+  color: var(--s-occupied);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.guard h4 {
+  margin: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.guard p { margin: 0; font-size: 14.5px; color: var(--ink-soft); max-width: 62ch; }
+
+/* ---------- demo script ---------- */
+
+.script { list-style: none; padding: 0; margin: 26px 0 0; max-width: none; counter-reset: step; }
+.script > li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.script > li::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.script > li:last-child { border-bottom: none; }
+.do {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  color: var(--ink);
+  margin: 0 0 6px;
+  max-width: none;
+}
+.say { margin: 0; font-size: 15px; color: var(--ink-soft); max-width: 66ch; }
+.say strong { color: var(--ink); font-weight: 600; }
+
+.callout {
+  border: 1px solid var(--accent);
+  background: var(--accent-bg);
+  border-radius: 5px;
+  padding: 14px 18px;
+  margin-top: 24px;
+  font-size: 14.5px;
+}
+.callout p { margin: 0; color: var(--ink); max-width: 64ch; }
+.callout .eyebrow { display: block; margin-bottom: 5px; color: var(--accent); }
+
+/* ---------- q&a ---------- */
+
+.qa { margin-top: 24px; }
+.qa details {
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 14px 0;
+}
+.qa details:first-child { border-top: 1px solid var(--rule); }
+.qa summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15.5px;
+  list-style: none;
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+.qa summary::-webkit-details-marker { display: none; }
+.qa summary::before {
+  content: "?";
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-size: 13px;
+  flex: none;
+}
+.qa p { margin: 10px 0 0 24px; color: var(--ink-soft); font-size: 15px; }
+
+.foot {
+  margin-top: 72px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.snippet {
+  margin: 0;
+  overflow-x: auto;
+  line-height: 1.72;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+}
+.snippet .cmt { color: var(--ink-faint); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .qa details[open] p { animation: fade 220ms ease-out; }
+  @keyframes fade { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+}
+
+@media (max-width: 620px) {
+  body { font-size: 16px; }
+  .script > li { grid-template-columns: 30px minmax(0, 1fr); gap: 12px; }
+  .flow-note { display: none; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="pipe-rule"><span></span><span></span><span></span><span></span><span></span></div>
+  <p class="eyebrow">Amigos Resorts &middot; module 4 &middot; demo reference</p>
+  <h1>The Housekeeping Pipeline</h1>
+  <p class="standfirst">Four classes, one state machine, and a stack per room. Everything you need on screen while you record the walkthrough.</p>
+  <div class="chips">
+    <span class="chip"><b>UI</b> HousekeepingUI</span>
+    <span class="chip"><b>Control</b> HousekeepingControl &middot; HousekeepingReportControl</span>
+    <span class="chip"><b>DAO</b> JsonHousekeepingTaskDAO &middot; JsonRoomDAO</span>
+    <span class="chip"><b>ADT</b> LinkedStack&lt;HousekeepingTask&gt;</span>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><p class="eyebrow">The map</p></div>
+  <h2>Where every call goes</h2>
+  <p class="lede">The UI reads keys and prints text. The control decides. The DAO stores. No layer does another layer&rsquo;s job &mdash; that separation is the first thing to say on camera.</p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 440" role="img" aria-label="Layer diagram: HousekeepingUI calls two controls, which call RoomDAO and HousekeepingTaskDAO, which write rooms.json and housekeeping-tasks.json. Front-desk, VIP and walk-in controls save into the same shared HousekeepingTaskDAO instance.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="d-fill"></path>
+          </marker>
+          <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="d-fill-a"></path>
+          </marker>
+        </defs>
+
+        <text x="40" y="16" class="d-lbl">BOUNDARY</text>
+        <rect x="40" y="24" width="300" height="52" rx="5" class="d-box"></rect>
+        <text x="190" y="55" text-anchor="middle" class="d-t-b">HousekeepingUI</text>
+
+        <rect x="520" y="24" width="320" height="52" rx="5" class="d-box-g"></rect>
+        <text x="680" y="55" text-anchor="middle" class="d-t">FrontDeskUI &middot; VIP &middot; Walk-In</text>
+
+        <text x="40" y="132" class="d-lbl">CONTROL</text>
+        <rect x="40" y="140" width="190" height="52" rx="5" class="d-box"></rect>
+        <text x="135" y="162" text-anchor="middle" class="d-t-b">Housekeeping</text>
+        <text x="135" y="179" text-anchor="middle" class="d-t-b">Control</text>
+
+        <rect x="250" y="140" width="230" height="52" rx="5" class="d-box"></rect>
+        <text x="365" y="162" text-anchor="middle" class="d-t-b">HousekeepingReport</text>
+        <text x="365" y="179" text-anchor="middle" class="d-t-b">Control</text>
+
+        <rect x="520" y="140" width="320" height="52" rx="5" class="d-box-g"></rect>
+        <text x="680" y="171" text-anchor="middle" class="d-t">FrontDesk / Allocation / WalkIn</text>
+
+        <rect x="90" y="244" width="650" height="88" rx="6" class="d-frame"></rect>
+        <text x="90" y="236" class="d-lbl">DAO &mdash; ONE SHARED INSTANCE EACH, BUILT IN AmigosResorts.main()</text>
+
+        <rect x="120" y="262" width="200" height="52" rx="5" class="d-box"></rect>
+        <text x="220" y="293" text-anchor="middle" class="d-t-b">RoomDAO</text>
+
+        <rect x="400" y="262" width="300" height="52" rx="5" class="d-box-a"></rect>
+        <text x="550" y="293" text-anchor="middle" class="d-t-b">HousekeepingTaskDAO</text>
+
+        <rect x="120" y="376" width="200" height="44" rx="4" class="d-box"></rect>
+        <text x="220" y="403" text-anchor="middle" class="d-t">rooms.json</text>
+        <rect x="400" y="376" width="300" height="44" rx="4" class="d-box"></rect>
+        <text x="550" y="403" text-anchor="middle" class="d-t">housekeeping-tasks.json</text>
+
+        <line x1="175" y1="78" x2="140" y2="136" class="d-line" marker-end="url(#ar)"></line>
+        <text x="94" y="112" class="d-lbl">MENU 1&ndash;4</text>
+        <line x1="230" y1="78" x2="330" y2="136" class="d-line" marker-end="url(#ar)"></line>
+        <text x="296" y="112" class="d-lbl">MENU 5</text>
+        <line x1="680" y1="78" x2="680" y2="136" class="d-line" marker-end="url(#ar)"></line>
+
+        <line x1="128" y1="194" x2="200" y2="258" class="d-line" marker-end="url(#ar)"></line>
+        <text x="26" y="232" class="d-lbl">STATUS WRITE</text>
+        <line x1="160" y1="194" x2="498" y2="258" class="d-line-a" marker-end="url(#ar-a)"></line>
+        <text x="290" y="248" class="d-lbl">SAVE / PEEK / POP</text>
+        <line x1="460" y1="194" x2="618" y2="240" class="d-line" marker-end="url(#ar)"></line>
+        <text x="486" y="216" class="d-lbl">READ-ONLY</text>
+
+        <line x1="680" y1="194" x2="680" y2="258" class="d-line-a" marker-end="url(#ar-a)"></line>
+        <text x="692" y="228" class="d-lbl">SAVE(TASK)</text>
+
+        <line x1="220" y1="316" x2="220" y2="372" class="d-line" marker-end="url(#ar)"></line>
+        <text x="232" y="348" class="d-lbl">ATOMIC WRITE</text>
+        <line x1="550" y1="316" x2="550" y2="372" class="d-line" marker-end="url(#ar)"></line>
+        <text x="562" y="348" class="d-lbl">ATOMIC WRITE</text>
+      </svg>
+    </div>
+    <figcaption>The brass arrows are the ones that matter: every module writes housekeeping tasks into <em>the same</em> DAO object, injected once in <code>AmigosResorts.main()</code>. That is why a check-in done at the front desk appears in the housekeeping activity log without any code linking the two modules.</figcaption>
+  </figure>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>File</th><th>Responsibility</th><th>The line to point at</th></tr></thead>
+    <tbody>
+      <tr><td><code>boundary/HousekeepingUI.java</code></td><td>Menu loop, input parsing, all printing</td><td class="mono tnum">start() &mdash; 767 lines, zero rules</td></tr>
+      <tr><td><code>control/HousekeepingControl.java</code></td><td>Transition rules, task creation, undo</td><td class="mono tnum">canTransition() : 352</td></tr>
+      <tr><td><code>control/HousekeepingReportControl.java</code></td><td>Two reports: filter, count, sort</td><td class="mono tnum">generateActivityLogReport()</td></tr>
+      <tr><td><code>dao/JsonHousekeepingTaskDAO.java</code></td><td>Persistence plus the in-memory store</td><td class="mono tnum">class TaskStore : 176</td></tr>
+      <tr><td><code>entity/HousekeepingTask.java</code></td><td>One recorded status change</td><td class="mono tnum">7 fields, plain getters</td></tr>
+      <tr><td><code>entity/RoomStatus.java</code></td><td>The seven states and their labels</td><td class="mono tnum">fromLabel()</td></tr>
+      <tr><td><code>adt/LinkedStack.java</code></td><td>The undo structure</td><td class="mono tnum">push / pop / peek / toArray</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><p class="eyebrow">The rules</p></div>
+  <h2>A room can only move one way</h2>
+  <p class="lede">Every legal move lives in a single <code>switch</code> &mdash; <code>HousekeepingControl.canTransition()</code>. The method right below it, <code>getValidNextStatuses()</code>, returns the same table as an array, with the comment <em>&ldquo;Derived from canTransition so the two can never drift apart.&rdquo;</em> The menu you see on screen is built from that array, so the UI physically cannot offer an illegal move.</p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 900 300" role="img" aria-label="State machine: Occupied to Dirty to Cleaning In Progress to Inspected to Ready for Check-In, with return edges from Cleaning, Inspected, Ready and Available back to Dirty, and a dashed check-in edge from Ready back to Occupied set by other modules.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="d-fill"></path>
+          </marker>
+          <marker id="ar2u" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="d-fill-u"></path>
+          </marker>
+        </defs>
+
+        <path d="M 810 108 L 810 30 L 90 30 L 90 106" class="d-dash" marker-end="url(#ar2u)"></path>
+        <text x="450" y="24" text-anchor="middle" class="d-lbl">CHECK-IN &mdash; SET BY FRONT DESK / VIP / WALK-IN, NEVER BY THIS MODULE</text>
+
+        <rect x="20"  y="110" width="140" height="48" rx="5" class="n-occupied"></rect>
+        <text x="90"  y="139" text-anchor="middle" class="d-t">Occupied</text>
+        <rect x="200" y="110" width="140" height="48" rx="5" class="n-dirty"></rect>
+        <text x="270" y="139" text-anchor="middle" class="d-t">Dirty</text>
+        <rect x="380" y="110" width="140" height="48" rx="5" class="n-cleaning"></rect>
+        <text x="450" y="132" text-anchor="middle" class="d-t">Cleaning</text>
+        <text x="450" y="149" text-anchor="middle" class="d-t">In Progress</text>
+        <rect x="560" y="110" width="140" height="48" rx="5" class="n-inspected"></rect>
+        <text x="630" y="139" text-anchor="middle" class="d-t">Inspected</text>
+        <rect x="740" y="110" width="140" height="48" rx="5" class="n-ready"></rect>
+        <text x="810" y="132" text-anchor="middle" class="d-t">Ready for</text>
+        <text x="810" y="149" text-anchor="middle" class="d-t">Check-In</text>
+
+        <line x1="162" y1="134" x2="196" y2="134" class="d-line" marker-end="url(#ar2)"></line>
+        <line x1="342" y1="134" x2="376" y2="134" class="d-line" marker-end="url(#ar2)"></line>
+        <line x1="522" y1="134" x2="556" y2="134" class="d-line" marker-end="url(#ar2)"></line>
+        <line x1="702" y1="134" x2="736" y2="134" class="d-line" marker-end="url(#ar2)"></line>
+
+        <rect x="20" y="210" width="140" height="44" rx="5" class="d-box"></rect>
+        <text x="90" y="238" text-anchor="middle" class="d-t">Available</text>
+        <path d="M 162 232 L 250 232 L 250 164" class="d-line" marker-end="url(#ar2)"></path>
+
+        <path d="M 450 160 L 450 182 L 290 182 L 290 164" class="d-line" marker-end="url(#ar2)"></path>
+        <text x="374" y="177" text-anchor="middle" class="d-lbl">RE-SOILED MID-CLEAN</text>
+        <path d="M 630 160 L 630 206 L 310 206 L 310 164" class="d-line" marker-end="url(#ar2)"></path>
+        <text x="474" y="201" text-anchor="middle" class="d-lbl">FAILED INSPECTION</text>
+        <path d="M 810 160 L 810 230 L 330 230 L 330 164" class="d-line" marker-end="url(#ar2)"></path>
+        <text x="574" y="225" text-anchor="middle" class="d-lbl">CLEAN ROOM SOILED AGAIN</text>
+      </svg>
+    </div>
+    <figcaption>Solid edges are the transitions housekeeping can perform. The dashed edge back to Occupied is the one this module never makes &mdash; a room becomes Occupied only when another module puts a guest in it.</figcaption>
+  </figure>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>Current status</th><th>Legal targets</th><th>What it means on the floor</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill p-occupied">Occupied</span></td><td><span class="pill p-dirty">Dirty</span></td><td>Guest left; also set automatically on check-out</td></tr>
+      <tr><td><span class="pill p-dirty">Dirty</span></td><td><span class="pill p-cleaning">Cleaning In Progress</span></td><td>Cleaner has started &mdash; the only move available</td></tr>
+      <tr><td><span class="pill p-cleaning">Cleaning In Progress</span></td><td><span class="pill p-inspected">Inspected</span> <span class="pill p-dirty">Dirty</span></td><td>Send for inspection, or restart the clean</td></tr>
+      <tr><td><span class="pill p-inspected">Inspected</span></td><td><span class="pill p-ready">Ready for Check-In</span> <span class="pill p-dirty">Dirty</span></td><td>Pass it, or fail it back to the cleaner</td></tr>
+      <tr><td><span class="pill p-ready">Ready for Check-In</span></td><td><span class="pill p-dirty">Dirty</span></td><td>A clean room that got dirty again</td></tr>
+      <tr><td>Available</td><td><span class="pill p-dirty">Dirty</span></td><td>Same, for an unbooked clean room</td></tr>
+      <tr><td>Reserved</td><td>none</td><td>Prints &ldquo;No valid status transitions available&rdquo;</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">
+    <span class="eyebrow">If it comes up</span>
+    <p>A <code>Reserved</code> room falls into the <code>default:</code> branch of <code>canTransition()</code> and returns <code>false</code>. That is deliberate &mdash; a room held for a confirmed booking is the front desk&rsquo;s to release, not housekeeping&rsquo;s.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><p class="eyebrow">Inside the DAO</p></div>
+  <h2>One log, one stack per room</h2>
+  <p class="lede">The private <code>TaskStore</code> class inside <code>JsonHousekeepingTaskDAO</code> keeps two structures, because the module has two different access patterns: an audit trail that must never lose a record, and an undo that only ever touches the newest change for one room.</p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 360" role="img" aria-label="save appends a task to the append-only taskLog array and pushes it onto that room's LinkedStack. popLastForRoom pops only the stack; the log entry stays and is displayed as Undone.">
+        <defs>
+          <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="d-fill-a"></path>
+          </marker>
+          <marker id="ar3u" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="d-fill-u"></path>
+          </marker>
+        </defs>
+
+        <text x="40" y="30" class="d-lbl">HousekeepingTask[] taskLog &mdash; APPEND-ONLY, MAX 500</text>
+
+        <rect x="40"  y="44" width="68" height="42" rx="4" class="d-box"></rect>
+        <text x="74"  y="70" text-anchor="middle" class="d-t">HK050</text>
+        <text x="74"  y="102" text-anchor="middle" class="d-lbl">rm 101</text>
+        <rect x="112" y="44" width="68" height="42" rx="4" class="d-box"></rect>
+        <text x="146" y="70" text-anchor="middle" class="d-t">HK051</text>
+        <text x="146" y="102" text-anchor="middle" class="d-lbl">rm 102</text>
+        <rect x="184" y="44" width="68" height="42" rx="4" class="d-box"></rect>
+        <text x="218" y="70" text-anchor="middle" class="d-t">HK052</text>
+        <text x="218" y="102" text-anchor="middle" class="d-lbl">rm 102</text>
+        <rect x="256" y="44" width="68" height="42" rx="4" class="d-box"></rect>
+        <text x="290" y="70" text-anchor="middle" class="d-t">HK053</text>
+        <text x="290" y="102" text-anchor="middle" class="d-lbl">rm 101</text>
+        <rect x="328" y="44" width="68" height="42" rx="4" class="d-box-g"></rect>
+        <rect x="400" y="44" width="68" height="42" rx="4" class="d-box-g"></rect>
+
+        <rect x="560" y="44" width="290" height="42" rx="5" class="d-box-a"></rect>
+        <text x="705" y="70" text-anchor="middle" class="d-t">taskDAO.save(task)</text>
+
+        <line x1="556" y1="65" x2="474" y2="65" class="d-line-a" marker-end="url(#ar3)"></line>
+        <text x="515" y="34" text-anchor="middle" class="d-lbl">APPEND</text>
+
+        <path d="M 620 88 L 620 186 L 120 186 L 120 216" class="d-line-a" marker-end="url(#ar3)"></path>
+        <text x="372" y="180" text-anchor="middle" class="d-lbl">PUSH ONTO THAT ROOM&rsquo;S STACK</text>
+
+        <text x="40" y="158" class="d-lbl">LinkedStack&lt;HousekeepingTask&gt;[] historyStacks &mdash; ONE PER ROOM, MAX 50</text>
+
+        <rect x="60"  y="222" width="120" height="34" rx="4" class="d-box"></rect>
+        <text x="120" y="244" text-anchor="middle" class="d-t">HK053</text>
+        <rect x="60"  y="258" width="120" height="34" rx="4" class="d-box"></rect>
+        <text x="120" y="280" text-anchor="middle" class="d-t">HK050</text>
+        <text x="120" y="312" text-anchor="middle" class="d-lbl">ROOM 101</text>
+        <text x="52"  y="244" text-anchor="end" class="d-lbl">TOP</text>
+
+        <rect x="240" y="222" width="120" height="34" rx="4" class="d-box"></rect>
+        <text x="300" y="244" text-anchor="middle" class="d-t">HK052</text>
+        <rect x="240" y="258" width="120" height="34" rx="4" class="d-box"></rect>
+        <text x="300" y="280" text-anchor="middle" class="d-t">HK051</text>
+        <text x="300" y="312" text-anchor="middle" class="d-lbl">ROOM 102</text>
+
+        <rect x="560" y="250" width="290" height="42" rx="5" class="d-box"></rect>
+        <text x="705" y="276" text-anchor="middle" class="d-t">popLastForRoom(102)</text>
+
+        <path d="M 556 271 L 420 271 L 420 239 L 368 239" class="d-line-u" marker-end="url(#ar3u)"></path>
+        <text x="472" y="264" text-anchor="middle" class="d-lbl">POP &mdash; LIFO</text>
+
+        <path d="M 700 246 L 700 124 L 218 124 L 218 92" class="d-dash-g"></path>
+        <text x="459" y="118" text-anchor="middle" class="d-lbl">LOG ENTRY UNTOUCHED &mdash; NOW RENDERS AS &ldquo;UNDONE&rdquo;</text>
+      </svg>
+    </div>
+    <figcaption>A parallel <code>int[] historyRoomNumbers</code> maps a room number to its stack index &mdash; that is <code>findHistoryIndex()</code>, a linear scan. Popping removes a task from the stack but never from the log, and <code>isActive(taskId)</code> answers &ldquo;is this task still on some stack?&rdquo; by searching them.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head"><p class="eyebrow">Call flows</p></div>
+  <h2>What each menu key actually does</h2>
+  <p class="lede">Read these top-to-bottom while the option runs. Bold is the method worth naming out loud.</p>
+
+  <div class="flowgrid">
+
+    <div class="flow">
+      <div class="flow-head"><span class="flow-key">1</span><span class="flow-title">Update Room Status</span><span class="flow-note">writes both JSON files</span></div>
+<pre>updateRoomStatusUI()
+ |- getRoomStatusViews()          print the room table
+ |- getRoomByNumber(n)            does the room exist?
+ |- getValidNextStatuses(status)  <i>menu built from the rules</i>
+ +- <b>updateRoomStatus(n, newStatus, staff, notes)</b>
+      1. roomDAO.findByNumber(n)         null?  ROOM_NOT_FOUND
+      2. canTransition(current, target)  false? INVALID_TRANSITION
+      3. new HousekeepingTask(nextTaskId(), room, old, new, ...)
+      4. taskDAO.save(task)              false? SAVE_FAILED
+      5. roomDAO.updateStatus(n, newStatus)
+      -> StatusUpdateResult.success(task)</pre>
+    </div>
+
+    <div class="flow">
+      <div class="flow-head"><span class="flow-key">2</span><span class="flow-title">Undo Last Status Update</span><span class="flow-note">pops one stack</span></div>
+<pre>undoLastUpdateUI()
+ |- hasUndoHistory(n)             fills the &ldquo;Undo?&rdquo; column
+ +- <b>undoLastUpdate(n)</b>
+      1. room exists?
+      2. peekLastForRoom(n)        top of that room&rsquo;s stack
+      3. <i>three guards - see below</i>
+      4. popLastForRoom(n)         LIFO pop
+      5. roomDAO.updateStatus(n, restoreStatus)
+      -> the undone task, or null</pre>
+    </div>
+
+    <div class="flow">
+      <div class="flow-head"><span class="flow-key">3</span><span class="flow-title">View Room Status History</span><span class="flow-note">read-only</span></div>
+<pre><b>getRoomHistoryEntries(n)</b>
+ |- findHistoryByRoomNumber(n)    walks taskLog <i>backwards</i>
+ +- isActive(taskId) per task     -> TaskHistoryEntry(task, active)
+                                     prints Active / Undone</pre>
+    </div>
+
+    <div class="flow">
+      <div class="flow-head"><span class="flow-key">4</span><span class="flow-title">View All Room Status</span><span class="flow-note">read-only</span></div>
+<pre><b>getRoomStatusViews()</b>
+ +- one RoomStatusView record per room
+      (number, type, status, undoAvailable, price)
+      the record&rsquo;s own toString() does the column formatting</pre>
+    </div>
+
+    <div class="flow">
+      <div class="flow-head"><span class="flow-key">5</span><span class="flow-title">Generate Reports</span><span class="flow-note">no JCF anywhere</span></div>
+<pre>HousekeepingReportControl - both reports share one shape:
+ 1. one pass  fill int[] summary counters, count matches
+ 2. allocate  new T[matchCount]   <i>exact size, no resizing</i>
+ 3. one pass  copy the matches in
+ 4. <b>SortingUtil.selectionSort(array, comparator)</b>
+      rooms -> ascending by room number
+      tasks -> descending by numeric task ID (newest first)</pre>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><p class="eyebrow">The interesting part</p></div>
+  <h2>Three guards stand between you and a bad undo</h2>
+  <p class="lede">All three live in <code>HousekeepingControl.undoLastUpdate()</code>, and <code>hasUndoHistory()</code> runs the same checks &mdash; which is why the <strong>Undo?</strong> column already tells the truth before you press anything.</p>
+
+  <div class="guards">
+    <div class="guard">
+      <div class="guard-n">1</div>
+      <div>
+        <h4>The room exists</h4>
+        <p>Cheap, but it keeps a null out of the next two checks.</p>
+      </div>
+    </div>
+    <div class="guard">
+      <div class="guard-n">2</div>
+      <div>
+        <h4>latest.getNewStatus().equals(room.getStatus())</h4>
+        <p>The top of the stack must still match reality. If another module moved the room since that task was recorded, the undo is stale and is refused rather than stomping on newer state.</p>
+      </div>
+    </div>
+    <div class="guard">
+      <div class="guard-n">3</div>
+      <div>
+        <h4>previousStatus is not &ldquo;Occupied&rdquo;</h4>
+        <p>You cannot undo a check-out, because restoring the room to Occupied would contradict the booking record that says the guest has already left.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>And one special restore rule</h3>
+  <p>Undoing a <em>check-in</em> does not put the room back to Available:</p>
+  <div class="card">
+<pre class="snippet">String restoreStatus = undoneTask.getNewStatus().equals(OCCUPIED.label())
+        ? DIRTY.label()                    <span class="cmt">// a room that held a guest is re-cleaned</span>
+        : undoneTask.getPreviousStatus();  <span class="cmt">// normal case: straight revert</span></pre>
+  </div>
+  <p>The room re-enters the cleaning pipeline from the top, and the UI says so: <em>&ldquo;Room needs cleaning before the next check-in.&rdquo;</em></p>
+</section>
+
+<section>
+  <div class="sec-head"><p class="eyebrow">On camera</p></div>
+  <h2>An eight-step run</h2>
+  <p class="lede">Your committed <code>data/</code> is already set up for this: room <strong>101 Occupied</strong>, room <strong>102 Dirty</strong>, the other 38 Available, 53 tasks in the log. Restore it any time with <code>git checkout -- data</code>.</p>
+
+  <ol class="script">
+    <li>
+      <div>
+        <p class="do">Main menu &rarr; 4 &rarr; option 4</p>
+        <p class="say">Show the room table and point at the <strong>Undo?</strong> column. Room 101 says Yes, room 102 says <strong>No</strong> &mdash; the guards are visible before anything is pressed.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <p class="do">Option 1 &rarr; room 102</p>
+        <p class="say">The only status offered is <em>Cleaning In Progress</em>. Say it plainly: <strong>the menu is generated from the rule table, so an illegal move cannot even be typed.</strong> Enter your name and a note.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <p class="do">Option 1 &rarr; room 102 &rarr; Inspected, then again &rarr; Ready for Check-In</p>
+        <p class="say">Three moves, the whole pipeline. Each one writes a new <code>HK###</code> task and updates the room in the same call.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <p class="do">Option 2 &rarr; room 102 &rarr; Y</p>
+        <p class="say">It steps back to Inspected. One <code>pop()</code> off that room&rsquo;s <code>LinkedStack</code> &mdash; last in, first out.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <p class="do">Option 3 &rarr; room 102</p>
+        <p class="say">The task you just undid is <em>still listed</em>, marked <strong>Undone</strong>. Nothing is deleted from the audit log; it only leaves the undo stack.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <p class="do">Option 2 &rarr; room 101 &rarr; Y</p>
+        <p class="say">Undoing a check-in lands on <strong>Dirty</strong>, not Available, and the app explains why. This is the special restore rule.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <p class="do">Option 2 &rarr; room 102 &rarr; try the old check-out (HK052, Occupied &rarr; Dirty)</p>
+        <p class="say">Refused. Guard 3 &mdash; undoing it would put a departed guest back in the room.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <p class="do">Option 5 &rarr; 1 (Standard + Dirty), then 5 &rarr; 2 (your staff name)</p>
+        <p class="say">Filtered summary counts, then just the tasks you created during the recording. The staff menu is built live from <code>getDistinctStaffNames()</code>.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="callout">
+    <span class="eyebrow">Two lines that always land</span>
+    <p>&ldquo;The UI only ever offers legal transitions because it <em>asks the control</em> for them &mdash; the rule table exists in exactly one place.&rdquo; &nbsp;&middot;&nbsp; &ldquo;Undo is a linked stack per room. Popping removes the task from the undo stack but never from the audit log.&rdquo;</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><p class="eyebrow">If they ask</p></div>
+  <h2>Questions worth an answer in your pocket</h2>
+
+  <div class="qa">
+    <details>
+      <summary>Why keep a stack when you already have the log?</summary>
+      <p>Two access patterns. Undo needs the newest change for <em>one</em> room and needs it removed &mdash; that is LIFO, constant time on a stack. The log must keep every record forever, in order, for the activity report. Forcing one structure to do both would mean either deleting audit history or scanning the whole log on every undo.</p>
+    </details>
+    <details>
+      <summary>What stops two modules fighting over the same room?</summary>
+      <p>Guard 2. The undo compares the top of the stack against the room&rsquo;s live status; if the front desk has moved the room since, they no longer match and the undo is refused. The DAO methods that mutate state are also <code>synchronized</code>.</p>
+    </details>
+    <details>
+      <summary>Where is the Java Collections Framework?</summary>
+      <p>Nowhere in the runtime storage. Data lives in a hand-written <code>LinkedStack</code> and plain arrays, and ordering is a hand-written selection sort. The only <code>java.util</code> types involved are <code>Comparator</code> and <code>Predicate</code> &mdash; functional interfaces, not collections &mdash; plus <code>Arrays.copyOf</code> as an array helper and Gson for file I/O.</p>
+    </details>
+    <details>
+      <summary>What happens to task IDs after a restart?</summary>
+      <p><code>load()</code> calls <code>restoreCounter(nextTaskId)</code> from the file, and every restored task also runs through <code>updateTaskIdCounter()</code>, which takes the maximum. The counter only moves forward, so IDs never repeat.</p>
+    </details>
+    <details>
+      <summary>What if the JSON references a room that does not exist?</summary>
+      <p><code>load()</code> throws <code>IllegalStateException</code> naming the task and the missing room number. It fails loudly at startup rather than silently dropping history.</p>
+    </details>
+    <details>
+      <summary>Why save the task before updating the room?</summary>
+      <p>So an audit record can never be missing for a change that happened. If <code>save()</code> fails, the room is left untouched and the UI reports <code>SAVE_FAILED</code>. Both writes reach disk immediately, through a temp file and an atomic move.</p>
+    </details>
+    <details>
+      <summary>Does undo history survive a restart?</summary>
+      <p>Yes. Each task is persisted with an <code>active</code> flag. On load, active tasks are pushed back onto their room&rsquo;s stack and undone ones go into the log only &mdash; so the &ldquo;Undo?&rdquo; column and the Active / Undone markers look exactly as they did before you closed the app.</p>
+    </details>
+    <details>
+      <summary>Are there limits?</summary>
+      <p>Yes, and they are explicit constants in <code>TaskStore</code>: <code>MAX_ROOMS = 50</code> undo stacks and <code>MAX_TASKS = 500</code> log entries. Past that, <code>save()</code> returns false and the update is rejected rather than silently overwriting.</p>
+    </details>
+  </div>
+</section>
+
+<p class="foot">Amigos Resorts &middot; com.amigos.resorts &middot; housekeeping module reference</p>
+
+</div>
